@@ -6,13 +6,16 @@ window.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    fetch('http://localhost:8080/transacoes')
-        .then(res => res.json())
-        .then(all => {
-            const minhas = all.filter(t => t.alunoId === Number(idAluno));
-            renderCards(minhas);
-        })
-        .catch(console.error);
+    try {
+        const response = await fetch(`http://localhost:8080/transacoes/aluno/${idAluno}`);
+        if (!response.ok) throw new Error('Erro ao carregar transações');
+
+        const minhas = await response.json();
+        renderCards(minhas);
+    } catch (error) {
+        console.error('Falha ao carregar transações:', error);
+        alert('Falha ao carregar histórico de transações');
+    }
 
     try {
         const response = await fetch(`http://localhost:8080/extratos/aluno/${idAluno}`);
@@ -22,13 +25,22 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
 
         const transacoes = await response.json();
+        console.log('Dados do extrato:', transacoes);
 
         let totalRecebido = 0;
-        transacoes.forEach(tx => {
-            totalRecebido += tx.quantidade;
-        });
+        let totalGasto = 0;
 
-        const totalGasto = 0; //mudar na próxima sprint
+        transacoes.forEach(tx => {
+            const tipo = tx.tipoTransacao?.toUpperCase() || 
+                         (tx.professorNome ? 'ENVIO' : 
+                         (tx.empresaNome ? 'RESGATE' : ''));
+            
+            if (tipo === 'ENVIO') {
+                totalRecebido += tx.quantidade;
+            } else if (tipo === 'RESGATE') {
+                totalGasto += tx.quantidade;
+            }
+        });
 
         try {
             const respAluno = await fetch(`http://localhost:8080/alunos/${idAluno}`);
@@ -73,14 +85,14 @@ function renderCards(transacoes) {
         <p class="${classeTipo}"><strong>${labelTipo}:</strong></p>
         <p><strong>Data: </strong> ${formatDate(t.data)}</p>
         ${!isResgate
-                ? `<p><strong>Professor: </strong> ${t.professorNome}</p>`
+                ? `<p><strong>Professor: </strong> ${t.professorNome}</p>
+                 <p><strong>Motivo:</strong> ${t.motivo}</p>`
                 : `<p><strong>Código: </strong> ${t.codigo}</p>
              <p><strong>Empresa:</strong> ${t.empresaNome}</p>
              <p><strong>Vantagem:</strong> ${t.vantagemNome}</p>`
             }
         <p><strong>Aluno:</strong> ${t.alunoNome}</p>
-        <p><strong>Motivo:</strong> ${t.motivo}</p>
-        <p><strong>Quantidade:</strong> ${t.quantidade} moedas</p>
+        <p><strong>Quantidade:</strong> ${Math.abs(t.quantidade)} moedas</p>
       </div>
     `;
 

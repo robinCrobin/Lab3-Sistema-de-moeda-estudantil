@@ -124,6 +124,10 @@ window.addEventListener('DOMContentLoaded', async () => {
                         document.getElementById('motivo-envio').value = '';
                         localStorage.removeItem('idAlunoSelecionado');
                         fecharmodal();
+                        const saldoEl = document.getElementById('saldo-moedas');
+                        let saldoAtual = Number(saldoEl.textContent.replace(/\D/g, ''));
+                        saldoAtual -= valorMoedas;
+                        saldoEl.textContent = `Saldo: ${saldoAtual} moedas`;
                     } else {
                         const msgErro = await responseEnvio.text();
                         alert('Sinto muito. Houve um erro ao enviar moedas: ' + msgErro);

@@ -34,14 +34,7 @@ public class ExtratoController {
     public List<TransacaoDTO> extratoAluno(@PathVariable Long alunoId) {
         return transacaoRepository.findByAlunoId(alunoId)
                 .stream()
-                .map(transacao -> {
-                    TransacaoDTO dto = toDto(transacao);
-
-                    if (transacao.getEmpresa() != null) {
-                        dto.setQuantidade(-dto.getQuantidade());
-                    }
-                    return dto;
-                })
+                .map(this::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -49,8 +42,10 @@ public class ExtratoController {
         TransacaoDTO dto = new TransacaoDTO();
         dto.setId(transacao.getId());
         dto.setData(transacao.getData());
-        dto.setQuantidade(transacao.getQuantidade());
+        dto.setQuantidade(Math.abs(transacao.getQuantidade()));
         dto.setMotivo(transacao.getMotivo());
+        dto.setTipoTransacao(transacao.getTipoTransacao());
+        dto.setCodigo(transacao.getCodigo());
 
         if (transacao.getProfessor() != null) {
             dto.setProfessorNome(transacao.getProfessor().getNome());
@@ -62,6 +57,10 @@ public class ExtratoController {
 
         if (transacao.getEmpresa() != null) {
             dto.setEmpresaNome(transacao.getEmpresa().getNome());
+        }
+
+        if (transacao.getVantagem() != null) {
+            dto.setVantagemNome(transacao.getVantagem().getNome()); 
         }
 
         return dto;
