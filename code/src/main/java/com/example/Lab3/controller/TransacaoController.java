@@ -4,19 +4,26 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.example.Lab3.dto.TransacaoDTO;
 import com.example.Lab3.model.Aluno;
 import com.example.Lab3.model.Professor;
 import com.example.Lab3.model.Transacao;
+import com.example.Lab3.model.Vantagem;
 import com.example.Lab3.repository.AlunoRepository;
 import com.example.Lab3.repository.ProfessorRepository;
 import com.example.Lab3.repository.TransacaoRepository;
@@ -30,6 +37,7 @@ public class TransacaoController {
     private final ProfessorRepository professorRepository;
     private final AlunoRepository alunoRepository;
     private final JavaMailSender mailSender;
+    private final VantagemRepository vantagemRepository;
 
     public TransacaoController(TransacaoRepository transacaoRepository,
             ProfessorRepository professorRepository,
@@ -40,10 +48,18 @@ public class TransacaoController {
         this.professorRepository = professorRepository;
         this.alunoRepository = alunoRepository;
         this.mailSender = mailSender;
+        this.vantagemRepository = vantagemRepository;
     }
 
     @PostMapping("/enviar-moedas")
+    @Transactional
     public ResponseEntity<?> enviarMoedas(@RequestBody Transacao transacao) {
+        if (transacao.getProfessor() == null || transacao.getProfessor().getId() == null) {
+            return ResponseEntity.badRequest().body("ID do professor inválido");
+        }
+        if (transacao.getAluno() == null || transacao.getAluno().getId() == null) {
+            return ResponseEntity.badRequest().body("ID do aluno inválido");
+        }
         // Validar professor
         Professor professor = professorRepository.findById(transacao.getProfessor().getId()).orElse(null);
         if (professor == null) {
@@ -56,25 +72,23 @@ public class TransacaoController {
             return ResponseEntity.badRequest().body("Aluno não encontrado");
         }
 
-        // Verificar saldo suficiente
-        if (professor.getSaldoMoedas() < transacao.getQuantidade()) {
+        int result = professorRepository.debitarSaldo(professor.getId(), transacao.getQuantidade());
+        if (result == 0) {
             return ResponseEntity.badRequest().body("Saldo insuficiente");
         }
 
-        // Atualizar saldos
-        professor.setSaldoMoedas(professor.getSaldoMoedas() - transacao.getQuantidade());
-        aluno.setSaldoMoedas(aluno.getSaldoMoedas() + transacao.getQuantidade());
+        // Operação atômica de crédito
+        alunoRepository.creditarSaldo(aluno.getId(), transacao.getQuantidade());
 
-        // Configurar transação
-        transacao.setTipoTransacao("ENVIO");
-        transacao.setData(LocalDateTime.now());
-        transacao.setProfessor(professor);
-        transacao.setAluno(aluno);
+        Transacao novaTransacao = new Transacao();
+        novaTransacao.setQuantidade(transacao.getQuantidade());
+        novaTransacao.setMotivo(transacao.getMotivo());
+        novaTransacao.setTipoTransacao("ENVIO");
+        novaTransacao.setData(LocalDateTime.now());
+        novaTransacao.setProfessor(professor);
+        novaTransacao.setAluno(aluno);
 
-        // Salvar transação e atualizar saldos
-        Transacao novaTransacao = transacaoRepository.save(transacao);
-        professorRepository.save(professor);
-        alunoRepository.save(aluno);
+        transacaoRepository.save(novaTransacao);
 
         // Enviar email de notificação (implementação direta)
         enviarEmailNotificacao(aluno, professor, transacao);
@@ -82,38 +96,107 @@ public class TransacaoController {
         return ResponseEntity.ok(novaTransacao);
     }
 
+    @Value("${spring.mail.from}")
+    private String remetenteEmail;
+
     private void enviarEmailNotificacao(Aluno aluno, Professor professor, Transacao transacao) {
-        SimpleMailMessage email = new SimpleMailMessage();
-        email.setTo(aluno.getEmail());
-        email.setSubject("Você recebeu moedas!");
-        email.setText(String.format(
-                "Olá %s,\n\nVocê recebeu %d moedas do professor %s.\nMotivo: %s",
-                aluno.getNome(),
-                transacao.getQuantidade(),
-                professor.getNome(),
-                transacao.getMotivo()));
-        mailSender.send(email);
+        try {
+            SimpleMailMessage email = new SimpleMailMessage();
+            email.setFrom(remetenteEmail);
+            email.setTo(aluno.getEmail());
+            email.setSubject("Você recebeu moedas!");
+            email.setText(String.format(
+                    "Olá %s,\n\nVocê recebeu %d moedas do professor %s.\nMotivo: %s",
+                    aluno.getNome(),
+                    transacao.getQuantidade(),
+                    professor.getNome(),
+                    transacao.getMotivo()));
+            mailSender.send(email);
+        } catch (MailException ex) {
+            // Log o erro mas não interrompa o fluxo
+            System.err.println("Erro ao enviar e-mail: " + ex.getMessage());
+        }
     }
 
     @GetMapping
     public List<TransacaoDTO> listarTransacoes() {
         return transacaoRepository.findAll().stream()
-                .map(transacao -> {
-                    TransacaoDTO dto = new TransacaoDTO();
-                    dto.setId(transacao.getId());
-                    dto.setData(transacao.getData());
-                    dto.setQuantidade(transacao.getQuantidade());
-                    dto.setMotivo(transacao.getMotivo());
-                    dto.setProfessorNome(transacao.getProfessor().getNome());
-                    dto.setAlunoNome(transacao.getAluno().getNome());
-                    if ("RESGATE".equalsIgnoreCase(transacao.getTipoTransacao())) {
-                        dto.setCodigo(transacao.getCodigo());
-                        dto.setEmpresaNome(transacao.getEmpresa().getNome());
-                        dto.setVantagemNome(transacao.getVantagem().getNome());
-                    }
-                    dto.setTipoTransacao(transacao.getTipoTransacao());
-                    return dto;
-                })
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+
+    private TransacaoDTO toDto(Transacao tx) {
+        TransacaoDTO dto = new TransacaoDTO();
+        dto.setId(tx.getId());
+        dto.setData(tx.getData());
+        dto.setQuantidade(tx.getQuantidade());
+        dto.setMotivo(tx.getMotivo());
+        dto.setTipoTransacao(tx.getTipoTransacao());
+
+        if (tx.getProfessor() != null) {
+            dto.setProfessorNome(tx.getProfessor().getNome());
+        }
+        if (tx.getAluno() != null) {
+            dto.setAlunoNome(tx.getAluno().getNome());
+        }
+        if (tx.getEmpresa() != null) {
+            dto.setEmpresaNome(tx.getEmpresa().getNome());
+        }
+        if (tx.getVantagem() != null) {
+            dto.setVantagemNome(tx.getVantagem().getNome()); 
+            dto.setVantagemFotoUrl(tx.getVantagem().getFotoUrl());
+        }
+        if (tx.getCodigo() != null)
+            dto.setCodigo(tx.getCodigo());
+
+        return dto;
+    }
+
+    @PostMapping("/resgatar")
+    @Transactional
+    public ResponseEntity<TransacaoDTO> resgatarVantagem(
+            @RequestBody Transacao transacao) {
+        if (transacao.getAluno() == null || transacao.getAluno().getId() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (transacao.getVantagem() == null || transacao.getVantagem().getId() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Aluno aluno = alunoRepository.findById(transacao.getAluno().getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Aluno não encontrado"));
+        Vantagem vantagem = vantagemRepository.findById(transacao.getVantagem().getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Vantagem não encontrada"));
+
+        int custo = vantagem.getCustoMoedas();
+        if (aluno.getSaldoMoedas() < custo) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(null);
+        }
+
+        int result = alunoRepository.debitarSaldo(aluno.getId(), custo);
+        if (result == 0) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+
+        Transacao tx = new Transacao();
+        tx.setAluno(aluno);
+        tx.setQuantidade(custo);
+        tx.setTipoTransacao("RESGATE");
+        tx.setData(LocalDateTime.now());
+        tx.setEmpresa(vantagem.getEmpresa());
+        tx.setVantagem(vantagem);
+        transacaoRepository.save(tx);
+
+        return ResponseEntity.ok(toDto(tx));
+    }
+
+    @GetMapping("/aluno/{alunoId}")
+    public List<TransacaoDTO> getTransacoesPorAluno(@PathVariable Long alunoId) {
+        return transacaoRepository.findByAlunoId(alunoId).stream()
+                .map(this::toDto)
                 .collect(Collectors.toList());
     }
 }
