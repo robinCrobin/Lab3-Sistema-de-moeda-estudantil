@@ -25,6 +25,11 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
         const professor = await respProfessor.json();
 
+        const saldo = document.getElementById('saldo-moedas');
+        if (saldo) {
+            saldo.textContent = `Saldo: ${professor.saldoMoedas} moedas`;
+        }
+
         const instituicaoId = professor.instituicao.id;
 
         const respAlunos = await fetch('http://localhost:8080/alunos');
@@ -97,7 +102,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                     alert('Informe o motivo do envio.');
                     return;
                 }
-                const idRemetente = idProfessor; 
+                const idRemetente = idProfessor;
                 const idDestinatario = idAlunoSelecionado;
 
                 try {

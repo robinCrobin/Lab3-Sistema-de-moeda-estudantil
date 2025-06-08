@@ -1,7 +1,8 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const cardContainer = document.querySelector('.card-container');
     const empresasUrl = 'http://localhost:8080/empresas';
     const vantagensUrl = 'http://localhost:8080/vantagens';
+    const idAluno = localStorage.getItem('idAluno');
 
     const fetchEmpresas = fetch(empresasUrl)
         .then(res => {
@@ -52,4 +53,21 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(err);
             cardContainer.innerHTML = `<p class="erro">Não foi possível carregar as vantagens.</p>`;
         });
+
+    try {
+        const respAluno = await fetch(`http://localhost:8080/alunos/${idAluno}`);
+        if (!respAluno.ok) {
+            alert('Erro ao carregar dados do aluno. Faça login novamente.');
+            window.location.href = '../../login/login.html';
+            return;
+        }
+        const aluno = await respAluno.json();
+
+        const saldo = document.getElementById('saldo-moedas');
+        if (saldo) {
+            saldo.textContent = `Saldo: ${aluno.saldoMoedas} moedas`;
+        }
+    } catch (err) {
+        alert('Ocorreu um erro ao inicializar a página. Recarregue e tente novamente.');
+    }
 });

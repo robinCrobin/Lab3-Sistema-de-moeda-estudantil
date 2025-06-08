@@ -1,15 +1,19 @@
 package com.example.Lab3.controller;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.Lab3.dto.TransacaoDTO;
 import com.example.Lab3.model.Aluno;
 import com.example.Lab3.model.Professor;
 import com.example.Lab3.model.Transacao;
@@ -62,6 +66,7 @@ public class TransacaoController {
         aluno.setSaldoMoedas(aluno.getSaldoMoedas() + transacao.getQuantidade());
 
         // Configurar transação
+        transacao.setTipoTransacao("ENVIO");
         transacao.setData(LocalDateTime.now());
         transacao.setProfessor(professor);
         transacao.setAluno(aluno);
@@ -86,8 +91,29 @@ public class TransacaoController {
                 aluno.getNome(),
                 transacao.getQuantidade(),
                 professor.getNome(),
-                transacao.getMotivo()
-        ));
+                transacao.getMotivo()));
         mailSender.send(email);
+    }
+
+    @GetMapping
+    public List<TransacaoDTO> listarTransacoes() {
+        return transacaoRepository.findAll().stream()
+                .map(transacao -> {
+                    TransacaoDTO dto = new TransacaoDTO();
+                    dto.setId(transacao.getId());
+                    dto.setData(transacao.getData());
+                    dto.setQuantidade(transacao.getQuantidade());
+                    dto.setMotivo(transacao.getMotivo());
+                    dto.setProfessorNome(transacao.getProfessor().getNome());
+                    dto.setAlunoNome(transacao.getAluno().getNome());
+                    if ("RESGATE".equalsIgnoreCase(transacao.getTipoTransacao())) {
+                        dto.setCodigo(transacao.getCodigo());
+                        dto.setEmpresaNome(transacao.getEmpresa().getNome());
+                        dto.setVantagemNome(transacao.getVantagem().getNome());
+                    }
+                    dto.setTipoTransacao(transacao.getTipoTransacao());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 }

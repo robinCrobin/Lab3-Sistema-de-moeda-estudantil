@@ -1,6 +1,7 @@
 package com.example.Lab3.model;
 
 import java.time.LocalDateTime;
+import java.util.Random;
 
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
@@ -11,6 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 
 @Entity
 public class Transacao {
@@ -34,6 +36,31 @@ public class Transacao {
     private int quantidade;
     private String motivo;
     private LocalDateTime data;
+
+    @ManyToOne
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    @JoinColumn(name = "vantagem_id")  
+    private Vantagem vantagem;
+    private Long codigo;
+
+    private String tipoTransacao;
+
+    @PrePersist
+    private void gerarCodigoSeResgate() {
+        if (isResgate() && this.codigo == null) {
+            this.codigo = gerarNumeroAleatorio();
+        }
+    }
+
+    private boolean isResgate() {
+        return "RESGATE".equalsIgnoreCase(this.tipoTransacao);
+    }
+
+    private Long gerarNumeroAleatorio() {
+        long min = 1_000_000_000L;
+        long max = 9_999_999_999L;
+        return min + (long) (new Random().nextDouble() * (max - min));
+    }
 
     // Getters e Setters
     public Long getId() {
@@ -90,5 +117,29 @@ public class Transacao {
 
     public void setEmpresa(Empresa empresa) {
         this.empresa = empresa;
+    }
+
+    public Vantagem getVantagem() {
+        return vantagem;
+    }
+
+    public void setVantagem(Vantagem vantagem) {
+        this.vantagem = vantagem;
+    }
+
+    public Long getCodigo() {
+        return codigo;
+    }
+
+    public void setCodigo(Long codigo) {
+        this.codigo = codigo;
+    }
+
+    public String getTipoTransacao() {
+        return tipoTransacao;
+    }
+
+    public void setTipoTransacao(String tipoTransacao) {
+        this.tipoTransacao = tipoTransacao;
     }
 }

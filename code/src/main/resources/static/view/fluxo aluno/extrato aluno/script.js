@@ -6,6 +6,14 @@ window.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    fetch('http://localhost:8080/transacoes')
+        .then(res => res.json())
+        .then(all => {
+            const minhas = all.filter(t => t.alunoId === Number(idAluno));
+            renderCards(minhas);
+        })
+        .catch(console.error);
+
     try {
         const response = await fetch(`http://localhost:8080/extratos/aluno/${idAluno}`);
         if (!response.ok) {
@@ -37,3 +45,53 @@ window.addEventListener('DOMContentLoaded', async () => {
         alert('Não foi possível conectar-se ao servidor. Tente novamente mais tarde.');
     }
 });
+
+function renderCards(transacoes) {
+    const container = document.querySelector('.card-container');
+    container.innerHTML = '';
+
+    if (transacoes.length === 0) {
+        container.innerHTML = `
+      <p style="text-align: center; padding: 1rem;">
+        Você ainda não possui transações. <br>Realize alguma.
+      </p>
+      <img src="../../../imgs/joinha.png" id="joinha">
+    `;
+        return;
+    }
+
+    transacoes.forEach(t => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+
+        const isResgate = t.tipoTransacao.toUpperCase() === 'RESGATE';
+        const classeTipo = isResgate ? 'gasto' : 'recebimento';
+        const labelTipo = isResgate ? 'Gasto' : 'Recebimento';
+
+        card.innerHTML = `
+      <div>
+        <p class="${classeTipo}"><strong>${labelTipo}:</strong></p>
+        <p><strong>Data: </strong> ${formatDate(t.data)}</p>
+        ${!isResgate
+                ? `<p><strong>Professor: </strong> ${t.professorNome}</p>`
+                : `<p><strong>Código: </strong> ${t.codigo}</p>
+             <p><strong>Empresa:</strong> ${t.empresaNome}</p>
+             <p><strong>Vantagem:</strong> ${t.vantagemNome}</p>`
+            }
+        <p><strong>Aluno:</strong> ${t.alunoNome}</p>
+        <p><strong>Motivo:</strong> ${t.motivo}</p>
+        <p><strong>Quantidade:</strong> ${t.quantidade} moedas</p>
+      </div>
+    `;
+
+        container.appendChild(card);
+    });
+}
+
+function formatDate(isoString) {
+    const d = new Date(isoString);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+}

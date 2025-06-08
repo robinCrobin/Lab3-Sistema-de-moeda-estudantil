@@ -11,6 +11,9 @@ public class TransacaoDTO {
     private String professorNome;
     private String alunoNome;
     private String empresaNome;
+    private String vantagemNome;
+    private Long codigo;
+    private String tipoTransacao;
 
     // Getters e Setters
     public Long getId() {
@@ -67,5 +70,29 @@ public class TransacaoDTO {
 
     public void setEmpresaNome(String empresaNome) {
         this.empresaNome = empresaNome;
+    }
+
+    public String getVantagemNome() {
+        return vantagemNome;
+    }
+
+    public void setVantagemNome(String vantagemNome) {
+        this.vantagemNome = vantagemNome;
+    }
+
+    public Long getCodigo() {
+        return codigo;
+    }
+
+    public void setCodigo(Long codigo) {
+        this.codigo = codigo;
+    }
+
+    public String getTipoTransacao() {
+        return tipoTransacao;
+    }
+
+    public void setTipoTransacao(String tipoTransacao) {
+        this.tipoTransacao = tipoTransacao;
     }
 }
