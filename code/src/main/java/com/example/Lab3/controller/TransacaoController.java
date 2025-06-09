@@ -102,7 +102,7 @@ public class TransacaoController {
     private void enviarEmailNotificacao(Aluno aluno, Professor professor, Transacao transacao) {
         try {
             SimpleMailMessage email = new SimpleMailMessage();
-            email.setFrom(remetenteEmail);
+            email.setFrom("testemoedas454@gmail.com"); // <- Fix: remetente explícito
             email.setTo(aluno.getEmail());
             email.setSubject("Você recebeu moedas!");
             email.setText(String.format(
@@ -110,11 +110,13 @@ public class TransacaoController {
                     aluno.getNome(),
                     transacao.getQuantidade(),
                     professor.getNome(),
-                    transacao.getMotivo()));
+                    transacao.getMotivo()
+            ));
             mailSender.send(email);
+            System.out.println("Email enviado com sucesso para " + aluno.getEmail());
         } catch (MailException ex) {
-            // Log o erro mas não interrompa o fluxo
             System.err.println("Erro ao enviar e-mail: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 
@@ -143,11 +145,12 @@ public class TransacaoController {
             dto.setEmpresaNome(tx.getEmpresa().getNome());
         }
         if (tx.getVantagem() != null) {
-            dto.setVantagemNome(tx.getVantagem().getNome()); 
+            dto.setVantagemNome(tx.getVantagem().getNome());
             dto.setVantagemFotoUrl(tx.getVantagem().getFotoUrl());
         }
-        if (tx.getCodigo() != null)
+        if (tx.getCodigo() != null) {
             dto.setCodigo(tx.getCodigo());
+        }
 
         return dto;
     }
@@ -165,10 +168,10 @@ public class TransacaoController {
 
         Aluno aluno = alunoRepository.findById(transacao.getAluno().getId())
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Aluno não encontrado"));
+                HttpStatus.NOT_FOUND, "Aluno não encontrado"));
         Vantagem vantagem = vantagemRepository.findById(transacao.getVantagem().getId())
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Vantagem não encontrada"));
+                HttpStatus.NOT_FOUND, "Vantagem não encontrada"));
 
         int custo = vantagem.getCustoMoedas();
         if (aluno.getSaldoMoedas() < custo) {
