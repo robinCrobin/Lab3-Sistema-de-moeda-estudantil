@@ -153,7 +153,7 @@ public class AlunoController {
 
             // Email para o aluno
             SimpleMailMessage emailAluno = new SimpleMailMessage();
-            emailAluno.setFrom("testemoedas454@gmail.com"); // <- aqui!
+            emailAluno.setFrom("testemoedas454@gmail.com");
             emailAluno.setTo(aluno.getEmail());
             emailAluno.setSubject("Cupom de vantagem - " + vantagem.getNome());
             emailAluno.setText(String.format(
@@ -164,7 +164,7 @@ public class AlunoController {
 
             // Email para a empresa
             SimpleMailMessage emailEmpresa = new SimpleMailMessage();
-            emailEmpresa.setFrom("testemoedas454@gmail.com"); // <- aqui também!
+            emailEmpresa.setFrom("testemoedas454@gmail.com");
             emailEmpresa.setTo(empresa.getEmail());
             emailEmpresa.setSubject("Resgate de vantagem - " + vantagem.getNome());
             emailEmpresa.setText(String.format(
