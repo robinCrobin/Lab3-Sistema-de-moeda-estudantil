@@ -1,39 +1,47 @@
 window.addEventListener('DOMContentLoaded', async () => {
+    const INITIAL_COINS = 1000;
     const idProfessor = localStorage.getItem('idProfessor');
     if (!idProfessor) {
         alert('Você precisa estar logado como professor para ver este extrato.');
-        window.location.href = '../../login/login.html';
-        return;
+        return window.location.href = '../../login/login.html';
     }
 
     try {
-        const response = await fetch(`http://localhost:8080/extratos/professor/${idProfessor}`);
-        if (!response.ok) {
-            alert('Erro ao carregar transações. Recarregue a página e tente novamente.😉');
-            return;
-        }
+        const respTx = await fetch(`http://localhost:8080/extratos/professor/${idProfessor}`);
+        if (!respTx.ok) throw new Error('Falha ao carregar transações');
+        const transacoes = await respTx.json();
+        const envios = transacoes.filter(tx => tx.tipoTransacao === 'ENVIO');
 
-        const transacoes = await response.json();
-
-        let totalEnviado = 0;
-        transacoes.forEach(tx => {
-            totalEnviado += tx.quantidade;
+        const container = document.querySelector('.card-container');
+        container.innerHTML = '';
+        envios.forEach(tx => {
+            const card = document.createElement('div');
+            card.classList.add('card');
+            card.innerHTML = `
+        <div>
+          <p class="envio"><strong>Envio:</strong></p>
+          <p><strong>Data:</strong> ${new Date(tx.data).toLocaleDateString('pt-BR')}</p>
+          <p><strong>Código:</strong> ${tx.codigo ?? ''}</p>
+          <p><strong>Aluno:</strong> ${tx.alunoNome}</p>
+          <p><strong>Motivo:</strong> ${tx.motivo ?? ''}</p>
+          <p><strong>Quantidade enviada:</strong> ${tx.quantidade} moedas</p>
+        </div>
+      `;
+            container.appendChild(card);
         });
-        const totalRecebido = 1000;
 
-        try {
-            const respProfessor = await fetch(`http://localhost:8080/professores/${idProfessor}`);
-            const professor = await respProfessor.json();
-            const saldoAtual = professor.saldoMoedas;
+        const totalEnviado = envios.reduce((sum, tx) => sum + tx.quantidade, 0);
 
-            document.getElementById('valor-recebido').innerText = `${totalRecebido} moedas`;
-            document.getElementById('valor-enviado').innerText = `${totalEnviado} moedas`;
-            document.getElementById('valor-saldo').innerText = `${saldoAtual} moedas`;
-        } catch (error) {
-            alert('Houve um erro ao carregar o saldo atual. Tente recarregar, por favor.😉')
-        }
+        document.getElementById('valor-recebido').innerText = `${INITIAL_COINS} moedas`;
+        document.getElementById('valor-enviado').innerText = `${totalEnviado} moedas`;
 
-    } catch (error) {
-        alert('Não foi possível conectar-se ao servidor. Tente novamente mais tarde.😉');
+        const respProf = await fetch(`http://localhost:8080/professores/${idProfessor}`);
+        if (!respProf.ok) throw new Error('Falha ao carregar saldo');
+        const professor = await respProf.json();
+        document.getElementById('valor-saldo').innerText = `${professor.saldoMoedas} moedas`;
+
+    } catch (err) {
+        console.error(err);
+        alert('Erro ao carregar o extrato. Veja o console para mais detalhes.');
     }
 });
