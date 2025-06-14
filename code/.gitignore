@@ -4,6 +4,17 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# Bloqueia arquivos sensíveis
+.env
+*.secret
+secrets.properties
+
+# Ignora o arquivo de configuração (opcional)
+code/src/main/resources/application.properties
+
+echo ".env" >> .gitignore
+echo "code/src/main/resources/application.properties" >> .gitignore
+
 ### STS ###
 .apt_generated
 .classpath
