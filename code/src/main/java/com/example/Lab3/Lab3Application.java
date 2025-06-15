@@ -23,3 +23,10 @@ public class Lab3Application {
         SpringApplication.run(Lab3Application.class, args);
     }
 }
+
+/*
+ * Aluno: marcosctaveira@gmail.com
+ * Professor: marcosbhtaveira@gmail.com
+ * Empresa: marcos.taveira@sga.pucminas.br
+ * Senhas: 1234
+ */
