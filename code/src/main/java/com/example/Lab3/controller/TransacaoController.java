@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
@@ -17,13 +16,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.example.Lab3.dto.TransacaoDTO;
 import com.example.Lab3.model.Aluno;
 import com.example.Lab3.model.Professor;
 import com.example.Lab3.model.Transacao;
-import com.example.Lab3.model.Vantagem;
 import com.example.Lab3.repository.AlunoRepository;
 import com.example.Lab3.repository.ProfessorRepository;
 import com.example.Lab3.repository.TransacaoRepository;
@@ -91,7 +88,7 @@ public class TransacaoController {
         transacaoRepository.save(novaTransacao);
 
         // Enviar email de notificação (implementação direta)
-        enviarEmailNotificacao(aluno, professor, transacao);
+        enviarEmailNotificacao(aluno, professor, novaTransacao);
 
         return ResponseEntity.ok(novaTransacao);
     }
@@ -153,47 +150,6 @@ public class TransacaoController {
         }
 
         return dto;
-    }
-
-    @PostMapping("/resgatar")
-    @Transactional
-    public ResponseEntity<TransacaoDTO> resgatarVantagem(
-            @RequestBody Transacao transacao) {
-        if (transacao.getAluno() == null || transacao.getAluno().getId() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-        if (transacao.getVantagem() == null || transacao.getVantagem().getId() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        Aluno aluno = alunoRepository.findById(transacao.getAluno().getId())
-                .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Aluno não encontrado"));
-        Vantagem vantagem = vantagemRepository.findById(transacao.getVantagem().getId())
-                .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Vantagem não encontrada"));
-
-        int custo = vantagem.getCustoMoedas();
-        if (aluno.getSaldoMoedas() < custo) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(null);
-        }
-
-        int result = alunoRepository.debitarSaldo(aluno.getId(), custo);
-        if (result == 0) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        }
-
-        Transacao tx = new Transacao();
-        tx.setAluno(aluno);
-        tx.setQuantidade(custo);
-        tx.setTipoTransacao("RESGATE");
-        tx.setData(LocalDateTime.now());
-        tx.setEmpresa(vantagem.getEmpresa());
-        tx.setVantagem(vantagem);
-        transacaoRepository.save(tx);
-
-        return ResponseEntity.ok(toDto(tx));
     }
 
     @GetMapping("/aluno/{alunoId}")

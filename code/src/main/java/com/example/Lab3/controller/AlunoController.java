@@ -1,9 +1,10 @@
 package com.example.Lab3.controller;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -126,58 +127,60 @@ public class AlunoController {
             return ResponseEntity.badRequest().body("Saldo insuficiente");
         }
 
-        // Atualizar saldo do aluno
         aluno.setSaldoMoedas(aluno.getSaldoMoedas() - vantagem.getCustoMoedas());
         alunoRepository.save(aluno);
 
-        // Registrar transação
         Transacao transacao = new Transacao();
         transacao.setAluno(aluno);
         transacao.setEmpresa(empresa);
+        transacao.setVantagem(vantagem);
         transacao.setQuantidade(vantagem.getCustoMoedas());
         transacao.setData(LocalDateTime.now());
         transacao.setMotivo("Resgate: " + vantagem.getNome());
+        transacao.setTipoTransacao("RESGATE");
+
         Transacao transacaoSalva = transacaoRepository.save(transacao);
 
-        // Enviar cupom (implementação direta)
-        enviarCupomEmail(aluno, empresa, vantagem, transacaoSalva.getId());
+        enviarCupomEmail(aluno, empresa, vantagem, transacaoSalva.getCodigo(), transacaoSalva.getId());
 
-        return ResponseEntity.ok("Vantagem resgatada com sucesso. Cupom enviado por email.");
+        Map<String, Object> response = new HashMap<>();
+        response.put("mensagem", "Vantagem resgatada com sucesso. Cupom enviado por email.");
+        response.put("codigoCupom", transacaoSalva.getCodigo());
+        response.put("transacaoId", transacaoSalva.getId());
+        response.put("vantagem", vantagem.getNome());
+
+        return ResponseEntity.ok(response);
     }
 
-    private void enviarCupomEmail(Aluno aluno, Empresa empresa, Vantagem vantagem, Long transacaoId) {
+    private void enviarCupomEmail(Aluno aluno, Empresa empresa, Vantagem vantagem, Long codigoCupom, Long transacaoId) {
         try {
-            String codigoCupom = UUID.randomUUID().toString();
-
             System.out.println("Tentando enviar email para: " + aluno.getEmail());
 
-            // Email para o aluno
             SimpleMailMessage emailAluno = new SimpleMailMessage();
             emailAluno.setFrom("testemoedas454@gmail.com");
             emailAluno.setTo(aluno.getEmail());
             emailAluno.setSubject("Cupom de vantagem - " + vantagem.getNome());
             emailAluno.setText(String.format(
-                    "Olá %s,\n\nVocê resgatou: %s\nCódigo do cupom: %s\nID da transação: %d",
+                    "Olá %s,\n\nVocê resgatou: %s\nCódigo do cupom: %d\nID da transação: %d",
                     aluno.getNome(), vantagem.getNome(), codigoCupom, transacaoId
             ));
             mailSender.send(emailAluno);
 
-            // Email para a empresa
             SimpleMailMessage emailEmpresa = new SimpleMailMessage();
             emailEmpresa.setFrom("testemoedas454@gmail.com");
             emailEmpresa.setTo(empresa.getEmail());
             emailEmpresa.setSubject("Resgate de vantagem - " + vantagem.getNome());
             emailEmpresa.setText(String.format(
-                    "Olá %s,\n\nO aluno %s resgatou: %s\nCódigo do cupom: %s\nID da transação: %d",
+                    "Olá %s,\n\nO aluno %s resgatou: %s\nCódigo do cupom: %d\nID da transação: %d",
                     empresa.getNome(), aluno.getNome(), vantagem.getNome(), codigoCupom, transacaoId
             ));
             mailSender.send(emailEmpresa);
 
-            System.out.println("Email para empresa enviado!");
-
+            System.out.println("Emails de resgate enviados com sucesso.");
         } catch (MailException e) {
-            System.err.println("ERRO AO ENVIAR EMAIL: ");
+            System.err.println("ERRO AO ENVIAR EMAIL DE RESGATE: ");
             e.printStackTrace();
         }
     }
+
 }
